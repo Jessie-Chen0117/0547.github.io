@@ -1,0 +1,1235 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>IGCSE Chinese 0547 Mastery</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Noto Sans SC', sans-serif; -webkit-font-smoothing: antialiased; touch-action: manipulation; }
+        .font-hand { font-family: 'Ma Shan Zheng', cursive; }
+        
+        /* Tian Zi Ge Background */
+        .tian-zi-ge {
+            background-image: 
+                linear-gradient(to right, #ef444440 1px, transparent 1px),
+                linear-gradient(to bottom, #ef444440 1px, transparent 1px);
+            background-size: 50% 50%;
+            background-position: center;
+            border: 2px solid #fca5a5;
+        }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* Animation Classes */
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+        .shake { animation: shake 0.3s ease-in-out; }
+        
+        @keyframes pop { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+        .pop { animation: pop 0.2s ease-in-out; }
+
+        .card-selected { border-color: #3b82f6; background-color: #eff6ff; transform: scale(1.05); box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.5); }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 h-screen flex flex-col overflow-hidden select-none">
+
+    <header class="bg-white/95 backdrop-blur-md border-b border-slate-200 p-3 md:p-4 shadow-sm z-30 flex justify-between items-center shrink-0">
+        <div class="flex items-center gap-2 md:gap-3">
+            <button id="globalBackBtn" class="hidden p-2 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 transition flex items-center gap-1 pr-3 active:scale-95" onclick="app.goHome()">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+                <span class="text-sm font-bold">主菜单</span>
+            </button>
+            <h1 class="text-lg md:text-xl font-bold tracking-tight text-slate-800">IGCSE 0547</h1>
+        </div>
+        <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2 bg-slate-100 px-3 py-1 rounded-full">
+                <span class="text-xs font-bold text-slate-500">拼音</span>
+                <button id="pinyinToggle" class="w-8 h-5 bg-slate-300 rounded-full relative transition-colors duration-300 focus:outline-none" onclick="app.togglePinyin()">
+                    <div class="w-3 h-3 bg-white rounded-full absolute top-1 left-1 transition-transform duration-300 shadow-sm transform"></div>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main id="appRoot" class="flex-1 overflow-y-auto p-4 md:p-6 max-w-5xl mx-auto w-full relative">
+        </main>
+
+    <script>
+        // --- 1. AUDIO ENGINE (Web Audio API - No external files needed) ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        const sfx = {
+            playTone: (freq, type, duration, volume = 0.1, ramp = false) => {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                
+                gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+                if (ramp) {
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+                } else {
+                    gain.gain.setValueAtTime(0, audioCtx.currentTime + duration);
+                }
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            },
+
+            ding: () => {
+                // High pitch Chime (Sine wave with decay)
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const t = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(1200, t);
+                osc.frequency.exponentialRampToValueAtTime(800, t + 0.1); // Slight pitch drop for bell effect
+                
+                gain.gain.setValueAtTime(0.3, t);
+                gain.gain.exponentialRampToValueAtTime(0.01, t + 1.5); // Long decay (1.5s)
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(t + 1.5);
+            },
+
+            dong: () => {
+                // Low Thud (Triangle wave)
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const t = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(150, t);
+                osc.frequency.linearRampToValueAtTime(50, t + 0.3); // Pitch drops
+
+                gain.gain.setValueAtTime(0.5, t);
+                gain.gain.linearRampToValueAtTime(0.01, t + 0.3); // Short decay
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(t + 0.3);
+            },
+
+            click: () => {
+                // Mechanical Click (Short square wave)
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const t = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(600, t);
+                
+                gain.gain.setValueAtTime(0.05, t);
+                gain.gain.exponentialRampToValueAtTime(0.01, t + 0.05); // Super short (50ms)
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(t + 0.05);
+            }
+        };
+
+        // --- 2. DATABASE ---
+        const vocabularyData = [
+             // List 1: 时间 1 (Time 1)
+            { l:1, h:"以前", p:"yǐ qián", m:"before" }, { l:1, h:"时候", p:"shí hou", m:"time/moment" },
+            { l:1, h:"有时候", p:"yǒu shí hou", m:"sometimes" }, { l:1, h:"寒假", p:"hán jià", m:"winter holiday" },
+            { l:1, h:"最后", p:"zuì hòu", m:"finally/last" }, { l:1, h:"将来", p:"jiāng lái", m:"future" },
+            { l:1, h:"最近", p:"zuì jìn", m:"recently" }, { l:1, h:"目前", p:"mù qián", m:"currently" },
+            { l:1, h:"五点三刻", p:"wǔ diǎn sān kè", m:"5:45" }, { l:1, h:"时间", p:"shí jiān", m:"time" },
+            { l:1, h:"分钟", p:"fēn zhōng", m:"minute" }, { l:1, h:"现代", p:"xiàn dài", m:"modern times" },
+            { l:1, h:"小时", p:"xiǎo shí", m:"hour" }, { l:1, h:"快要..了", p:"kuài yào...le", m:"about to..." },
+            { l:1, h:"半", p:"bàn", m:"half" }, { l:1, h:"现在", p:"xiàn zài", m:"now" },
+            { l:1, h:"昨天", p:"zuó tiān", m:"yesterday" }, { l:1, h:"以后", p:"yǐ hòu", m:"after" },
+            { l:1, h:"每天", p:"měi tiān", m:"every day" },
+
+            // List 2: 时间 2 (Time 2)
+            { l:2, h:"前天", p:"qián tiān", m:"day before yesterday" }, { l:2, h:"上午", p:"shàng wǔ", m:"morning" },
+            { l:2, h:"下午", p:"xià wǔ", m:"afternoon" }, { l:2, h:"夜里", p:"yè lǐ", m:"at night" },
+            { l:2, h:"后天", p:"hòu tiān", m:"day after tomorrow" }, { l:2, h:"中午", p:"zhōng wǔ", m:"noon" },
+            { l:2, h:"星期", p:"xīng qī", m:"week" }, { l:2, h:"周末", p:"zhōu mò", m:"weekend" },
+            { l:2, h:"这个星期", p:"zhè ge xīng qī", m:"this week" }, { l:2, h:"上个星期", p:"shàng ge xīng qī", m:"last week" },
+            { l:2, h:"下个星期", p:"xià ge xīng qī", m:"next week" }, { l:2, h:"今年", p:"jīn nián", m:"this year" },
+            { l:2, h:"每年", p:"měi nián", m:"every year" }, { l:2, h:"前年", p:"qián nián", m:"year before last" },
+            { l:2, h:"后年", p:"hòu nián", m:"year after next" }, { l:2, h:"去年", p:"qù nián", m:"last year" },
+            { l:2, h:"上个月", p:"shàng ge yuè", m:"last month" }, { l:2, h:"下个月", p:"xià ge yuè", m:"next month" },
+            { l:2, h:"这个月", p:"zhè ge yuè", m:"this month" },
+
+            // List 3: 季节与餐食
+            { l:3, h:"春天", p:"chūn tiān", m:"spring" }, { l:3, h:"夏天", p:"xià tiān", m:"summer" },
+            { l:3, h:"秋天", p:"qiū tiān", m:"autumn" }, { l:3, h:"冬天", p:"dōng tiān", m:"winter" },
+            { l:3, h:"季节", p:"jì jié", m:"season" }, { l:3, h:"早饭", p:"zǎo fàn", m:"breakfast" },
+            { l:3, h:"午饭", p:"wǔ fàn", m:"lunch" }, { l:3, h:"晚饭", p:"wǎn fàn", m:"dinner" },
+            { l:3, h:"野餐", p:"yě cān", m:"picnic" }, { l:3, h:"零食", p:"líng shí", m:"snacks" },
+            { l:3, h:"食物", p:"shí wù", m:"food" }, { l:3, h:"素食", p:"sù shí", m:"vegetarian food" },
+            { l:3, h:"全素", p:"quán sù", m:"vegan" }, { l:3, h:"白菜", p:"bái cài", m:"chinese cabbage" },
+            { l:3, h:"蔬菜", p:"shū cài", m:"vegetable" },
+
+            // List 4: 食物 (Fruits/Veg/Meat)
+            { l:4, h:"橙子", p:"chéng zi", m:"orange" }, { l:4, h:"水果", p:"shuǐ guǒ", m:"fruit" },
+            { l:4, h:"豆角", p:"dòu jiǎo", m:"green beans" }, { l:4, h:"土豆", p:"tǔ dòu", m:"potato" },
+            { l:4, h:"梨", p:"lí", m:"pear" }, { l:4, h:"西瓜", p:"xī guā", m:"watermelon" },
+            { l:4, h:"苹果", p:"píng guǒ", m:"apple" }, { l:4, h:"西红柿", p:"xī hóng shì", m:"tomato" },
+            { l:4, h:"葡萄", p:"pú tao", m:"grape" }, { l:4, h:"西兰花", p:"xī lán huā", m:"broccoli" },
+            { l:4, h:"青菜", p:"qīng cài", m:"green vegetables" }, { l:4, h:"香蕉", p:"xiāng jiāo", m:"banana" },
+            { l:4, h:"海鲜", p:"hǎi xiān", m:"seafood" }, { l:4, h:"肉", p:"ròu", m:"meat" },
+            { l:4, h:"汉堡包", p:"hàn bǎo bāo", m:"hamburger" }, { l:4, h:"虾", p:"xiā", m:"shrimp" },
+            { l:4, h:"鸡", p:"jī", m:"chicken" }, { l:4, h:"羊肉", p:"yáng ròu", m:"lamb" },
+            { l:4, h:"烤鸭", p:"kǎo yā", m:"roast duck" }, { l:4, h:"鱼", p:"yú", m:"fish" },
+
+            // List 5: 食物与调料
+            { l:5, h:"牛肉", p:"niú ròu", m:"beef" }, { l:5, h:"猪肉", p:"zhū ròu", m:"pork" },
+            { l:5, h:"热狗", p:"rè gǒu", m:"hot dog" }, { l:5, h:"包子", p:"bāo zi", m:"steamed bun" },
+            { l:5, h:"面包", p:"miàn bāo", m:"bread" }, { l:5, h:"冰淇淋", p:"bīng qí lín", m:"ice cream" },
+            { l:5, h:"面条", p:"miàn tiáo", m:"noodles" }, { l:5, h:"点心", p:"diǎn xin", m:"dim sum" },
+            { l:5, h:"三明治", p:"sān míng zhì", m:"sandwich" }, { l:5, h:"春卷", p:"chūn juǎn", m:"spring roll" },
+            { l:5, h:"沙拉", p:"shā lā", m:"salad" }, { l:5, h:"醋", p:"cù", m:"vinegar" },
+            { l:5, h:"汤", p:"tāng", m:"soup" }, { l:5, h:"豆腐", p:"dòu fu", m:"tofu" },
+            { l:5, h:"糖", p:"táng", m:"sugar" }, { l:5, h:"盐", p:"yán", m:"salt" },
+            { l:5, h:"方便面", p:"fāng biàn miàn", m:"instant noodles" }, { l:5, h:"鸡蛋", p:"jī dàn", m:"egg" },
+            { l:5, h:"油条", p:"yóu tiáo", m:"fried dough stick" }, { l:5, h:"酱油", p:"jiàng yóu", m:"soy sauce" },
+
+            // List 6: 中餐与饮料
+            { l:6, h:"月饼", p:"yuè bǐng", m:"mooncake" }, { l:6, h:"饺子", p:"jiǎo zi", m:"dumplings" },
+            { l:6, h:"粥", p:"zhōu", m:"porridge" }, { l:6, h:"馒头", p:"mán tou", m:"steamed bun (plain)" },
+            { l:6, h:"粽子", p:"zòng zi", m:"sticky rice dumpling" }, { l:6, h:"米饭", p:"mǐ fàn", m:"cooked rice" },
+            { l:6, h:"饼干", p:"bǐng gān", m:"biscuit" }, { l:6, h:"薯条", p:"shǔ tiáo", m:"french fries" },
+            { l:6, h:"蛋糕", p:"dàn gāo", m:"cake" }, { l:6, h:"酸奶", p:"suān nǎi", m:"yogurt" },
+            { l:6, h:"四川菜", p:"sì chuān cài", m:"Sichuan cuisine" }, { l:6, h:"广东菜", p:"guǎng dōng cài", m:"Cantonese cuisine" },
+            { l:6, h:"西餐", p:"xī cān", m:"Western food" }, { l:6, h:"中餐", p:"zhōng cān", m:"Chinese food" },
+            { l:6, h:"名菜", p:"míng cài", m:"famous dish" }, { l:6, h:"白酒", p:"bái jiǔ", m:"white spirit" },
+            { l:6, h:"牛奶", p:"niú nǎi", m:"milk" }, { l:6, h:"茶", p:"chá", m:"tea" },
+            { l:6, h:"啤酒", p:"pí jiǔ", m:"beer" }, { l:6, h:"橙汁", p:"chéng zhī", m:"orange juice" },
+
+            // List 7: 饮料与餐具
+            { l:7, h:"葡萄酒", p:"pú táo jiǔ", m:"wine" }, { l:7, h:"果汁", p:"guǒ zhī", m:"fruit juice" },
+            { l:7, h:"汽水", p:"qì shuǐ", m:"soda" }, { l:7, h:"咖啡", p:"kā fēi", m:"coffee" },
+            { l:7, h:"饮料", p:"yǐn liào", m:"beverage" }, { l:7, h:"可乐", p:"kě lè", m:"cola" },
+            { l:7, h:"杯子", p:"bēi zi", m:"cup" }, { l:7, h:"盘子", p:"pán zi", m:"plate" },
+            { l:7, h:"刀叉", p:"dāo chā", m:"knife and fork" }, { l:7, h:"筷子", p:"kuài zi", m:"chopsticks" },
+            { l:7, h:"勺子", p:"sháo zi", m:"spoon" }, { l:7, h:"碗", p:"wǎn", m:"bowl" },
+
+            // List 8: 口味与地名
+            { l:8, h:"好吃", p:"hǎo chī", m:"delicious" }, { l:8, h:"酸", p:"suān", m:"sour" },
+            { l:8, h:"甜", p:"tián", m:"sweet" }, { l:8, h:"苦", p:"kǔ", m:"bitter" },
+            { l:8, h:"辣", p:"là", m:"spicy" }, { l:8, h:"咸", p:"xián", m:"salty" },
+            { l:8, h:"山东", p:"shān dōng", m:"Shandong" }, { l:8, h:"青岛", p:"qīng dǎo", m:"Qingdao" },
+            { l:8, h:"西藏", p:"xī zàng", m:"Tibet" }, { l:8, h:"拉萨", p:"lā sà", m:"Lhasa" },
+            { l:8, h:"广西", p:"guǎng xī", m:"Guangxi" }, { l:8, h:"桂林", p:"guì lín", m:"Guilin" },
+            { l:8, h:"四川", p:"sì chuān", m:"Sichuan" }, { l:8, h:"成都", p:"chéng dū", m:"Chengdu" },
+            { l:8, h:"贵州", p:"guì zhōu", m:"Guizhou" }, { l:8, h:"哈尔滨", p:"hā ěr bīn", m:"Harbin" },
+
+            // List 9: 身体部位
+            { l:9, h:"鼻子", p:"bí zi", m:"nose" }, { l:9, h:"手指", p:"shǒu zhǐ", m:"finger" },
+            { l:9, h:"肚子", p:"dù zi", m:"belly" }, { l:9, h:"头", p:"tóu", m:"head" },
+            { l:9, h:"耳朵", p:"ěr duo", m:"ear" }, { l:9, h:"头发", p:"tóu fa", m:"hair" },
+            { l:9, h:"脚", p:"jiǎo", m:"foot" }, { l:9, h:"腿", p:"tuǐ", m:"leg" },
+            { l:9, h:"脸", p:"liǎn", m:"face" }, { l:9, h:"胃", p:"wèi", m:"stomach" },
+            { l:9, h:"皮肤", p:"pí fū", m:"skin" }, { l:9, h:"心", p:"xīn", m:"heart" },
+            { l:9, h:"嗓子", p:"sǎng zi", m:"throat" }, { l:9, h:"牙齿", p:"yá chǐ", m:"tooth" },
+            { l:9, h:"身体", p:"shēn tǐ", m:"body" }, { l:9, h:"眼睛", p:"yǎn jing", m:"eye" },
+            { l:9, h:"手", p:"shǒu", m:"hand" }, { l:9, h:"嘴", p:"zuǐ", m:"mouth" },
+            { l:9, h:"病", p:"bìng", m:"illness" }, { l:9, h:"受伤", p:"shòu shāng", m:"injured" },
+
+            // List 10: 健康与媒体
+            { l:10, h:"吃药", p:"chī yào", m:"take medicine" }, { l:10, h:"舒服", p:"shū fu", m:"comfortable" },
+            { l:10, h:"出院", p:"chū yuàn", m:"discharged from hospital" }, { l:10, h:"疼", p:"téng", m:"pain/ache" },
+            { l:10, h:"打电话", p:"dǎ diàn huà", m:"make a call" }, { l:10, h:"西药", p:"xī yào", m:"Western medicine" },
+            { l:10, h:"打针", p:"dǎ zhēn", m:"get an injection" }, { l:10, h:"西医", p:"xī yī", m:"Western doctor" },
+            { l:10, h:"发烧", p:"fā shāo", m:"fever" }, { l:10, h:"牙医", p:"yá yī", m:"dentist" },
+            { l:10, h:"一部电影", p:"yī bù diàn yǐng", m:"a movie" }, { l:10, h:"动画片", p:"dòng huà piān", m:"cartoon" },
+            { l:10, h:"电视连续剧", p:"diàn shì lián xù jù", m:"TV series" }, { l:10, h:"体育节目", p:"tǐ yù jié mù", m:"sports program" },
+            { l:10, h:"足球比赛", p:"zú qiú bǐ sài", m:"soccer match" }, { l:10, h:"橄榄球比赛", p:"gǎn lǎn qiú bǐ sài", m:"rugby match" },
+            { l:10, h:"保龄球比赛", p:"bǎo líng qiú bǐ sài", m:"bowling match" }, { l:10, h:"不想错过", p:"bù xiǎng cuò guò", m:"don't want to miss" },
+            { l:10, h:"准时", p:"zhǔn shí", m:"on time" }, { l:10, h:"无聊", p:"wú liáo", m:"boring" },
+
+            // List 11: 疾病与治疗
+            { l:11, h:"感冒", p:"gǎn mào", m:"cold/flu" }, { l:11, h:"严重", p:"yán zhòng", m:"serious" },
+            { l:11, h:"药", p:"yào", m:"medicine" }, { l:11, h:"救护车", p:"jiù hù chē", m:"ambulance" },
+            { l:11, h:"药店", p:"yào diàn", m:"pharmacy" }, { l:11, h:"开刀", p:"kāi dāo", m:"surgery" },
+            { l:11, h:"医生", p:"yī shēng", m:"doctor" }, { l:11, h:"看病", p:"kàn bìng", m:"see a doctor" },
+            { l:11, h:"医院", p:"yī yuàn", m:"hospital" }, { l:11, h:"咳嗽", p:"ké sou", m:"cough" },
+            { l:11, h:"中药", p:"zhōng yào", m:"Chinese medicine" }, { l:11, h:"流血", p:"liú xiě", m:"bleeding" },
+            { l:11, h:"住院", p:"zhù yuàn", m:"hospitalized" }, { l:11, h:"生病", p:"shēng bìng", m:"get sick" },
+            { l:11, h:"你哪儿不舒服", p:"nǐ nǎr bù shū fu", m:"Where does it hurt?" },
+
+            // List 12: 交通出行
+            { l:12, h:"饭馆", p:"fàn guǎn", m:"restaurant" }, { l:12, h:"机场", p:"jī chǎng", m:"airport" },
+            { l:12, h:"路", p:"lù", m:"road" }, { l:12, h:"班", p:"bān", m:"shift/class" },
+            { l:12, h:"旅馆", p:"lǚ guǎn", m:"hotel" }, { l:12, h:"背包", p:"bēi bāo", m:"backpack" },
+            { l:12, h:"旅客", p:"lǚ kè", m:"traveler" }, { l:12, h:"迟到", p:"chí dào", m:"late" },
+            { l:12, h:"旅行社", p:"lǚ xíng shè", m:"travel agency" }, { l:12, h:"出发", p:"chū fā", m:"depart" },
+            { l:12, h:"末班车", p:"mò bān chē", m:"last bus/train" }, { l:12, h:"出租车", p:"chū zū chē", m:"taxi" },
+            { l:12, h:"目的地", p:"mù dì dì", m:"destination" }, { l:12, h:"船", p:"chuán", m:"boat" },
+            { l:12, h:"票", p:"piào", m:"ticket" }, { l:12, h:"单程票", p:"dān chéng piào", m:"one-way ticket" },
+            { l:12, h:"骑", p:"qí", m:"ride" }, { l:12, h:"地铁", p:"dì tiě", m:"subway" },
+            { l:12, h:"起飞", p:"qǐ fēi", m:"take off" }, { l:12, h:"堵车", p:"dǔ chē", m:"traffic jam" },
+
+            // List 13: 旅行
+            { l:13, h:"汽车站", p:"qì chē zhàn", m:"bus station" }, { l:13, h:"飞机", p:"fēi jī", m:"airplane" },
+            { l:13, h:"桥", p:"qiáo", m:"bridge" }, { l:13, h:"高铁", p:"gāo tiě", m:"high-speed train" },
+            { l:13, h:"签证", p:"qiān zhèng", m:"visa" }, { l:13, h:"高速公路", p:"gāo sù gōng lù", m:"highway" },
+            { l:13, h:"时刻表", p:"shí kè biǎo", m:"timetable" }, { l:13, h:"公共汽车", p:"gōng gòng qì chē", m:"bus" },
+            { l:13, h:"事故", p:"shì gù", m:"accident" }, { l:13, h:"海关", p:"hǎi guān", m:"customs" },
+            { l:13, h:"铁路", p:"tiě lù", m:"railway" }, { l:13, h:"火车站", p:"huǒ chē zhàn", m:"train station" },
+            { l:13, h:"停车", p:"tíng chē", m:"park (a car)" }, { l:13, h:"箱子", p:"xiāng zi", m:"suitcase/box" },
+            { l:13, h:"假期", p:"jià qī", m:"vacation" }, { l:13, h:"行李", p:"xíng li", m:"luggage" },
+            { l:13, h:"交通", p:"jiāo tōng", m:"traffic/transport" }, { l:13, h:"游客", p:"yóu kè", m:"tourist" },
+            { l:13, h:"酒店", p:"jiǔ diàn", m:"hotel" }, { l:13, h:"准时", p:"zhǔn shí", m:"on time" },
+
+            // List 14: 方向与位置
+            { l:14, h:"开车", p:"kāi chē", m:"drive car" }, { l:14, h:"自行车", p:"zì xíng chē", m:"bicycle" },
+            { l:14, h:"走路", p:"zǒu lù", m:"walk" }, { l:14, h:"坐", p:"zuò", m:"sit/take (transport)" },
+            { l:14, h:"开往", p:"kāi wǎng", m:"bound for" }, { l:14, h:"来回票", p:"lái huí piào", m:"return ticket" },
+            { l:14, h:"地图", p:"dì tú", m:"map" }, { l:14, h:"方向", p:"fāng xiàng", m:"direction" },
+            { l:14, h:"米", p:"mǐ", m:"meter" }, { l:14, h:"请问", p:"qǐng wèn", m:"excuse me (ask)" },
+            { l:14, h:"附近", p:"fù jìn", m:"nearby" }, { l:14, h:"入口", p:"rù kǒu", m:"entrance" },
+            { l:14, h:"公里", p:"gōng lǐ", m:"kilometer" }, { l:14, h:"十字路口", p:"shí zì lù kǒu", m:"intersection" },
+            { l:14, h:"红绿灯", p:"hóng lǜ dēng", m:"traffic light" }, { l:14, h:"往…走", p:"wǎng...zǒu", m:"go towards..." },
+            { l:14, h:"近", p:"jìn", m:"near" }, { l:14, h:"一直", p:"yī zhí", m:"straight" },
+            { l:14, h:"路过", p:"lù guò", m:"pass by" }, { l:14, h:"远", p:"yuǎn", m:"far" },
+
+            // List 15: 问路用语
+            { l:15, h:"向…转", p:"xiàng...zhuǎn", m:"turn towards..." }, { l:15, h:"马路", p:"mǎ lù", m:"road" },
+            { l:15, h:"到…怎么走", p:"dào...zěn me zǒu", m:"how to get to..." }, { l:15, h:"在…边", p:"zài...biān", m:"on the ... side" },
+            { l:15, h:"…离这儿远吗", p:"...lí zhè er yuǎn ma", m:"is... far from here?" }, { l:15, h:"…在哪儿", p:"...zài nǎr", m:"where is..." },
+
+            // List 16: 社交礼仪
+            { l:16, h:"不好意思", p:"bù hǎo yì si", m:"excuse me/sorry" }, { l:16, h:"请进", p:"qǐng jìn", m:"please come in" },
+            { l:16, h:"不客气", p:"bù kè qi", m:"you're welcome" }, { l:16, h:"不谢", p:"bù xiè", m:"no thanks needed" },
+            { l:16, h:"请问", p:"qǐng wèn", m:"may I ask" }, { l:16, h:"对不起", p:"duì bu qǐ", m:"sorry" },
+            { l:16, h:"请坐", p:"qǐng zuò", m:"please sit" }, { l:16, h:"好久不见", p:"hǎo jiǔ bú jiàn", m:"long time no see" },
+            { l:16, h:"喂", p:"wèi", m:"hello (phone)" }, { l:16, h:"例如", p:"lì rú", m:"for example" },
+            { l:16, h:"问好", p:"wèn hǎo", m:"send regards" }, { l:16, h:"麻烦你了", p:"má fan nǐ le", m:"trouble you" },
+            { l:16, h:"我来介绍一下", p:"wǒ lái jiè shào yī xià", m:"let me introduce" }, { l:16, h:"没办法", p:"méi bàn fǎ", m:"no way" },
+            { l:16, h:"谢谢", p:"xiè xie", m:"thanks" }, { l:16, h:"没关系", p:"méi guān xi", m:"it's okay" },
+            { l:16, h:"再见", p:"zài jiàn", m:"goodbye" }, { l:16, h:"你好", p:"nǐ hǎo", m:"hello" },
+            { l:16, h:"怎么办", p:"zěn me bàn", m:"what to do" }, { l:16, h:"这位是", p:"zhè wèi shì", m:"this is..." },
+            { l:16, h:"参加", p:"cān jiā", m:"participate" }, { l:16, h:"请你来", p:"qǐng nǐ lái", m:"invite you" },
+            { l:16, h:"请原谅", p:"qǐng yuán liàng", m:"please forgive" }, { l:16, h:"欢迎光临", p:"huān yíng guāng lín", m:"welcome" },
+            { l:16, h:"邀请", p:"yāo qǐng", m:"invite" }, { l:16, h:"派对", p:"pài duì", m:"party" },
+            { l:16, h:"有事儿", p:"yǒu shìr", m:"busy/have matters" }, { l:16, h:"请客", p:"qǐng kè", m:"treat (someone)" },
+
+            // List 17: 家庭成员 1
+            { l:17, h:"爸爸", p:"bà ba", m:"dad" }, { l:17, h:"父母", p:"fù mǔ", m:"parents" },
+            { l:17, h:"大人", p:"dà ren", m:"adult" }, { l:17, h:"父亲", p:"fù qīn", m:"father" },
+            { l:17, h:"弟弟", p:"dì di", m:"younger brother" }, { l:17, h:"哥哥", p:"gē ge", m:"older brother" },
+            { l:17, h:"儿子", p:"ér zi", m:"son" }, { l:17, h:"孩子", p:"hái zi", m:"child" },
+            { l:17, h:"家庭", p:"jiā tíng", m:"family" }, { l:17, h:"女儿", p:"nǚ ér", m:"daughter" },
+            { l:17, h:"朋友", p:"péng you", m:"friend" }, { l:17, h:"姐妹", p:"jiě mèi", m:"sisters" },
+            { l:17, h:"妻子", p:"qī zi", m:"wife" }, { l:17, h:"老人", p:"lǎo rén", m:"elderly" },
+            { l:17, h:"亲爱的", p:"qīn ài de", m:"dear" }, { l:17, h:"姥姥", p:"lǎo lao", m:"grandma (maternal)" },
+            { l:17, h:"青年", p:"qīng nián", m:"youth" }, { l:17, h:"姥爷", p:"lǎo yé", m:"grandpa (maternal)" },
+            { l:17, h:"孙女", p:"sūn nǚ", m:"granddaughter" }, { l:17, h:"孙子", p:"sūn zi", m:"grandson" },
+
+            // List 18: 家庭成员 2
+            { l:18, h:"妈妈", p:"mā ma", m:"mom" }, { l:18, h:"太太", p:"tài tai", m:"Mrs./Wife" },
+            { l:18, h:"先生", p:"xiān sheng", m:"Mr./Husband" }, { l:18, h:"母亲", p:"mǔ qīn", m:"mother" },
+            { l:18, h:"奶奶", p:"nǎi nai", m:"grandma (paternal)" }, { l:18, h:"兄弟", p:"xiōng dì", m:"brothers" },
+            { l:18, h:"爷爷", p:"yé ye", m:"grandpa (paternal)" }, { l:18, h:"年轻人", p:"nián qīng rén", m:"young person" },
+            { l:18, h:"丈夫", p:"zhàng fu", m:"husband" }, { l:18, h:"男", p:"nán", m:"male" },
+
+            // List 19: 外貌
+            { l:19, h:"戴眼镜", p:"dài yǎn jìng", m:"wear glasses" }, { l:19, h:"胖", p:"pàng", m:"fat" },
+            { l:19, h:"瘦", p:"shòu", m:"thin" }, { l:19, h:"高", p:"gāo", m:"tall" },
+            { l:19, h:"矮", p:"ǎi", m:"short" }, { l:19, h:"头发", p:"tóu fa", m:"hair" },
+            { l:19, h:"长", p:"cháng", m:"long" }, { l:19, h:"短", p:"duǎn", m:"short" },
+            { l:19, h:"颜色", p:"yán sè", m:"color" }, { l:19, h:"眼睛", p:"yǎn jing", m:"eye" },
+
+            // List 20: 性格
+            { l:20, h:"卷", p:"juǎn", m:"curly" }, { l:20, h:"直", p:"zhí", m:"straight" },
+            { l:20, h:"年龄", p:"nián líng", m:"age" }, { l:20, h:"安静", p:"ān jìng", m:"quiet" },
+            { l:20, h:"开心", p:"kāi xīn", m:"happy" }, { l:20, h:"笨", p:"bèn", m:"stupid/clumsy" },
+            { l:20, h:"懒", p:"lǎn", m:"lazy" }, { l:20, h:"聪明", p:"cōng ming", m:"smart" },
+            { l:20, h:"好奇", p:"hào qí", m:"curious" }, { l:20, h:"努力", p:"nǔ lì", m:"hardworking" },
+            { l:20, h:"紧张", p:"jǐn zhāng", m:"nervous" }, { l:20, h:"严格", p:"yán gé", m:"strict" },
+            { l:20, h:"开朗", p:"kāi lǎng", m:"cheerful" }, { l:20, h:"友好", p:"yǒu hǎo", m:"friendly" },
+
+            // List 21: 个人信息
+            { l:21, h:"出生日期", p:"chū shēng rì qī", m:"DOB" }, { l:21, h:"姓名", p:"xìng míng", m:"full name" },
+            { l:21, h:"性别", p:"xìng bié", m:"gender" }, { l:21, h:"地点", p:"dì diǎn", m:"location" },
+            { l:21, h:"生日", p:"shēng rì", m:"birthday" }, { l:21, h:"电话号码", p:"diàn huà hào mǎ", m:"phone number" },
+            { l:21, h:"岁", p:"suì", m:"years old" }, { l:21, h:"电子邮件", p:"diàn zǐ yóu jiàn", m:"email" },
+            { l:21, h:"国籍", p:"guó jí", m:"nationality" }, { l:21, h:"号", p:"hào", m:"number" },
+            { l:21, h:"民族", p:"mín zú", m:"ethnicity" }, { l:21, h:"年纪", p:"nián jì", m:"age" },
+            { l:21, h:"年龄", p:"nián líng", m:"age" }, { l:21, h:"住址", p:"zhù zhǐ", m:"address" },
+            { l:21, h:"名字", p:"míng zi", m:"name" },
+
+            // List 22: 居住环境
+            { l:22, h:"城市", p:"chéng shì", m:"city" }, { l:22, h:"楼", p:"lóu", m:"building" },
+            { l:22, h:"地方", p:"dì fang", m:"place" }, { l:22, h:"楼梯", p:"lóu tī", m:"stairs" },
+            { l:22, h:"地区", p:"dì qū", m:"area" }, { l:22, h:"农村", p:"nóng cūn", m:"countryside" },
+            { l:22, h:"房子", p:"fáng zi", m:"house" }, { l:22, h:"人口", p:"rén kǒu", m:"population" },
+            { l:22, h:"高楼", p:"gāo lóu", m:"tall building" }, { l:22, h:"设施", p:"shè shī", m:"facilities" },
+            { l:22, h:"家乡", p:"jiā xiāng", m:"hometown" }, { l:22, h:"省", p:"shěng", m:"province" },
+            { l:22, h:"建筑", p:"jiàn zhù", m:"architecture" }, { l:22, h:"市区", p:"shì qū", m:"urban area" },
+            { l:22, h:"郊区", p:"jiāo qū", m:"suburbs" }, { l:22, h:"市中心", p:"shì zhōng xīn", m:"city center" },
+            { l:22, h:"街", p:"jiē", m:"street" }, { l:22, h:"首都", p:"shǒu dū", m:"capital city" },
+            { l:22, h:"邻居", p:"lín jū", m:"neighbor" }, { l:22, h:"周围", p:"zhōu wéi", m:"surroundings" },
+
+            // List 23: 家居 1
+            { l:23, h:"层", p:"céng", m:"floor" }, { l:23, h:"门口", p:"mén kǒu", m:"doorway" },
+            { l:23, h:"车库", p:"chē kù", m:"garage" }, { l:23, h:"暖气", p:"nuǎn qì", m:"heating" },
+            { l:23, h:"厨房", p:"chú fáng", m:"kitchen" }, { l:23, h:"沙发", p:"shā fā", m:"sofa" },
+            { l:23, h:"窗戶", p:"chuāng hu", m:"window" }, { l:23, h:"书房", p:"shū fáng", m:"study room" },
+            { l:23, h:"电梯", p:"diàn tī", m:"elevator" }, { l:23, h:"书桌", p:"shū zhuō", m:"desk" },
+            { l:23, h:"饭厅", p:"fàn tīng", m:"dining room" }, { l:23, h:"台灯", p:"tái dēng", m:"lamp" },
+            { l:23, h:"房间", p:"fáng jiān", m:"room" }, { l:23, h:"玩具", p:"wán jù", m:"toy" },
+            { l:23, h:"花园", p:"huā yuán", m:"garden" }, { l:23, h:"钥匙", p:"yào shi", m:"key" },
+            { l:23, h:"家具", p:"jiā jù", m:"furniture" }, { l:23, h:"衣柜", p:"yī guì", m:"wardrobe" },
+            { l:23, h:"镜子", p:"jìng zi", m:"mirror" }, { l:23, h:"椅子", p:"yǐ zi", m:"chair" },
+
+            // List 24: 家居用品
+            { l:24, h:"客厅", p:"kè tīng", m:"living room" }, { l:24, h:"桌子", p:"zhuō zi", m:"table" },
+            { l:24, h:"门", p:"mén", m:"door" }, { l:24, h:"厕所", p:"cè suǒ", m:"toilet" },
+            { l:24, h:"牙膏", p:"yá gāo", m:"toothpaste" }, { l:24, h:"牙刷", p:"yá shuā", m:"toothbrush" },
+            { l:24, h:"毛巾", p:"máo jīn", m:"towel" }, { l:24, h:"卫生间", p:"wèi shēng jiān", m:"bathroom" },
+            { l:24, h:"浴室", p:"yù shì", m:"shower room" }, { l:24, h:"洗衣机", p:"xǐ yī jī", m:"washing machine" },
+
+            // List 25: 日常活动
+            { l:25, h:"冰箱", p:"bīng xiāng", m:"fridge" }, { l:25, h:"空调", p:"kōng tiáo", m:"air conditioner" },
+            { l:25, h:"电话", p:"diàn huà", m:"telephone" }, { l:25, h:"电视机", p:"diàn shì jī", m:"TV set" },
+            { l:25, h:"打扫房间", p:"dǎ sǎo fáng jiān", m:"clean room" }, { l:25, h:"做家务", p:"zuò jiā wù", m:"do chores" },
+            { l:25, h:"洗衣服", p:"xǐ yī fu", m:"wash clothes" }, { l:25, h:"起床", p:"qǐ chuáng", m:"get up" },
+            { l:25, h:"睡觉", p:"shuì jiào", m:"sleep" }, { l:25, h:"洗脸", p:"xǐ liǎn", m:"wash face" },
+            { l:25, h:"洗澡", p:"xǐ zǎo", m:"shower/bath" }, { l:25, h:"穿衣服", p:"chuān yī fu", m:"get dressed" },
+            { l:25, h:"吃早饭", p:"chī zǎo fàn", m:"eat breakfast" },
+
+            // List 26: 颜色
+            { l:26, h:"颜色", p:"yán sè", m:"color" }, { l:26, h:"白", p:"bái", m:"white" },
+            { l:26, h:"蓝", p:"lán", m:"blue" }, { l:26, h:"橙", p:"chéng", m:"orange" },
+            { l:26, h:"绿", p:"lǜ", m:"green" }, { l:26, h:"黑", p:"hēi", m:"black" },
+            { l:26, h:"红", p:"hóng", m:"red" }, { l:26, h:"黄", p:"huáng", m:"yellow" },
+            { l:26, h:"灰", p:"huī", m:"grey" }, { l:26, h:"金", p:"jīn", m:"gold" },
+            { l:26, h:"浅", p:"qiǎn", m:"light (color)" }, { l:26, h:"紫", p:"zǐ", m:"purple" },
+            { l:26, h:"咖啡色", p:"kā fēi sè", m:"brown" }, { l:26, h:"棕", p:"zōng", m:"brown" },
+            { l:26, h:"深", p:"shēn", m:"dark (color)" },
+
+            // List 27: 服装
+            { l:27, h:"背包", p:"bēi bāo", m:"backpack" }, { l:27, h:"上衣", p:"shàng yī", m:"top/jacket" },
+            { l:27, h:"衬衫", p:"chèn shān", m:"shirt" }, { l:27, h:"时尚", p:"shí shàng", m:"fashion" },
+            { l:27, h:"衬衣", p:"chèn yī", m:"shirt/blouse" }, { l:27, h:"手表", p:"shǒu biǎo", m:"watch" },
+            { l:27, h:"手套", p:"shǒu tào", m:"gloves" }, { l:27, h:"大衣", p:"dà yī", m:"coat" },
+            { l:27, h:"袜子", p:"wà zi", m:"socks" }, { l:27, h:"围巾", p:"wéi jīn", m:"scarf" },
+            { l:27, h:"短裤", p:"duǎn kù", m:"shorts" }, { l:27, h:"西装", p:"xī zhuāng", m:"suit" },
+            { l:27, h:"服装店", p:"fú zhuāng diàn", m:"clothing store" }, { l:27, h:"校服", p:"xiào fú", m:"school uniform" },
+            { l:27, h:"毛衣", p:"máo yī", m:"sweater" }, { l:27, h:"鞋", p:"xié", m:"shoes" },
+            { l:27, h:"连衣裙", p:"lián yī qún", m:"dress" }, { l:27, h:"眼镜", p:"yǎn jìng", m:"glasses" },
+            { l:27, h:"领带", p:"lǐng dài", m:"tie" }, { l:27, h:"衣服", p:"yī fu", m:"clothes" },
+
+            // List 28: 配件
+            { l:28, h:"泳衣", p:"yǒng yī", m:"swimsuit" }, { l:28, h:"帽子", p:"mào zi", m:"hat" },
+            { l:28, h:"雨伞", p:"yǔ sǎn", m:"umbrella" }, { l:28, h:"雨衣", p:"yǔ yī", m:"raincoat" },
+            { l:28, h:"牛仔裤", p:"niú zǎi kù", m:"jeans" }, { l:28, h:"钱包", p:"qián bāo", m:"wallet" },
+            { l:28, h:"运动鞋", p:"yùn dòng xié", m:"sneakers" },
+
+            // List 29: 兴趣爱好
+            { l:29, h:"爱好", p:"ài hào", m:"hobby" }, { l:29, h:"表演", p:"biǎo yǎn", m:"perform" },
+            { l:29, h:"参观", p:"cān guān", m:"visit" }, { l:29, h:"大提琴", p:"dà tí qín", m:"cello" },
+            { l:29, h:"电影", p:"diàn yǐng", m:"movie" }, { l:29, h:"钓鱼", p:"diào yú", m:"fishing" },
+            { l:29, h:"动画片", p:"dòng huà piān", m:"cartoon" }, { l:29, h:"放风筝", p:"fàng fēng zheng", m:"fly a kite" },
+            { l:29, h:"弹钢琴", p:"tán gāng qín", m:"play piano" }, { l:29, h:"古典音乐", p:"gǔ diǎn yīn yuè", m:"classical music" },
+            { l:29, h:"逛街", p:"guàng jiē", m:"shopping" }, { l:29, h:"划船", p:"huá chuán", m:"row boat" },
+            { l:29, h:"画画儿", p:"huà huàr", m:"draw/paint" }, { l:29, h:"弹吉他", p:"tán jí tā", m:"play guitar" },
+            { l:29, h:"纪录片", p:"jì lù piān", m:"documentary" }, { l:29, h:"节目", p:"jié mù", m:"program" },
+            { l:29, h:"书法", p:"shū fǎ", m:"calligraphy" }, { l:29, h:"看报", p:"kàn bào", m:"read newspaper" },
+            { l:29, h:"看电视", p:"kàn diàn shì", m:"watch TV" }, { l:29, h:"跳舞", p:"tiào wǔ", m:"dance" },
+            { l:29, h:"看电影", p:"kàn diàn yǐng", m:"watch movie" }, { l:29, h:"听音乐", p:"tīng yīn yuè", m:"listen music" },
+            { l:29, h:"拉大提琴", p:"lā dà tí qín", m:"play cello" }, { l:29, h:"拉小提琴", p:"lā xiǎo tí qín", m:"play violin" },
+
+            // List 30: 媒体娱乐
+            { l:30, h:"玩", p:"wán", m:"play" }, { l:30, h:"聊天", p:"liáo tiān", m:"chat" },
+            { l:30, h:"晚会", p:"wǎn huì", m:"gala/party" }, { l:30, h:"流行歌曲", p:"liú xíng gē qǔ", m:"pop song" },
+            { l:30, h:"下棋", p:"xià qí", m:"play chess" }, { l:30, h:"象棋", p:"xiàng qí", m:"Chinese chess" },
+            { l:30, h:"买东西", p:"mǎi dōng xi", m:"buy things" }, { l:30, h:"漫画", p:"màn huà", m:"comic/manga" },
+            { l:30, h:"名人", p:"míng rén", m:"celebrity" }, { l:30, h:"明星", p:"míng xīng", m:"star" },
+            { l:30, h:"派对", p:"pài duì", m:"party" }, { l:30, h:"散步", p:"sàn bù", m:"walk/stroll" },
+            { l:30, h:"小说", p:"xiǎo shuō", m:"novel" }, { l:30, h:"小提琴", p:"xiǎo tí qín", m:"violin" },
+            { l:30, h:"艺术", p:"yì shù", m:"art" }, { l:30, h:"音乐会", p:"yīn yuè huì", m:"concert" }
+        ];
+
+        const listNames = {
+            1: "时间 1 (Time 1)", 2: "时间 2 (Time 2)", 3: "季节与餐食 (Seasons & Meals)",
+            4: "食物 (Fruits/Veg/Meat)", 5: "食物与调料 (Food & Condiments)", 6: "中餐与饮料 (Cuisine & Drinks)",
+            7: "饮料与餐具 (Drinks & Tableware)", 8: "口味与地名 (Flavors & Places)", 9: "身体部位 (Body Parts)",
+            10: "健康与媒体 (Health & Media)", 11: "疾病与治疗 (Illness & Treatment)", 12: "交通出行 (Transport)",
+            13: "旅行 (Travel)", 14: "方向与位置 (Direction & Location)", 15: "问路用语 (Asking Directions)",
+            16: "社交礼仪 (Social Etiquette)", 17: "家庭成员 1 (Family 1)", 18: "家庭成员 2 (Family 2)",
+            19: "外貌 (Appearance)", 20: "性格 (Personality)", 21: "个人信息 (Personal Info)",
+            22: "居住环境 (Housing Environment)", 23: "家居 1 (Furniture 1)", 24: "家居用品 (Household Items)",
+            25: "日常活动 (Daily Activities)", 26: "颜色 (Colors)", 27: "服装 (Clothing)",
+            28: "配件 (Accessories)", 29: "兴趣爱好 (Hobbies)", 30: "媒体娱乐 (Media & Entertainment)"
+        };
+
+        // --- 3. STATE & UTILS ---
+        const app = {
+            state: {
+                view: 'home',
+                pinyinVisible: false,
+                progress: JSON.parse(localStorage.getItem('igcse_progress')) || {},
+                selectedListId: null,
+                customPool: [],
+                timer: null,
+                quizDirection: 'h2e' // h2e (Hanzi to English) or e2h (English to Hanzi)
+            },
+
+            init() {
+                this.updatePinyinButton();
+                this.renderHome();
+            },
+
+            togglePinyin() {
+                this.state.pinyinVisible = !this.state.pinyinVisible;
+                this.updatePinyinButton();
+            },
+
+            updatePinyinButton() {
+                const btn = document.getElementById('pinyinToggle');
+                const dot = btn.firstElementChild;
+                if(this.state.pinyinVisible) {
+                    btn.classList.remove('bg-slate-300');
+                    btn.classList.add('bg-green-500');
+                    dot.classList.add('translate-x-5');
+                } else {
+                    btn.classList.add('bg-slate-300');
+                    btn.classList.remove('bg-green-500');
+                    dot.classList.remove('translate-x-5');
+                }
+            },
+
+            goHome() {
+                clearInterval(this.state.timer);
+                this.state.view = 'home';
+                document.getElementById('globalBackBtn').classList.add('hidden');
+                this.renderHome();
+                sfx.click(); // Click sound on nav
+            },
+
+            showBackButton() {
+                document.getElementById('globalBackBtn').classList.remove('hidden');
+            },
+
+            updateProgress(hanzi, isCorrect) {
+                if(!this.state.progress[hanzi]) {
+                    this.state.progress[hanzi] = { seen: true, netScore: 0 };
+                }
+                if(isCorrect) {
+                    this.state.progress[hanzi].netScore++;
+                } else {
+                    this.state.progress[hanzi].netScore = Math.max(0, this.state.progress[hanzi].netScore - 1);
+                }
+                localStorage.setItem('igcse_progress', JSON.stringify(this.state.progress));
+            },
+
+            clearProgress() {
+                if(confirm("确定要清除所有学习进度吗？")) {
+                    this.state.progress = {};
+                    localStorage.removeItem('igcse_progress');
+                    this.renderStats();
+                }
+            },
+
+            getPool() {
+                if(this.state.selectedListId === -1) return this.state.customPool;
+                if(this.state.selectedListId === null) return vocabularyData;
+                return vocabularyData.filter(w => w.l === this.state.selectedListId);
+            },
+
+            getRandomWords(count, pool) {
+                if(!pool || pool.length === 0) pool = vocabularyData;
+                const shuffled = [...pool].sort(() => 0.5 - Math.random());
+                return shuffled.slice(0, count);
+            },
+
+            // --- VIEWS ---
+            renderHome() {
+                const root = document.getElementById('appRoot');
+                root.innerHTML = `
+                    <div class="flex flex-col gap-6">
+                        <div class="bg-blue-600 rounded-3xl p-6 md:p-8 text-white shadow-lg flex flex-col items-center text-center">
+                            <h2 class="text-2xl md:text-3xl font-bold mb-2">IGCSE 中文 0547</h2>
+                            <p class="opacity-90 mb-6 text-sm md:text-base">全套大纲词汇 · 30个分类 · 智能记忆</p>
+                            <div class="flex gap-3 w-full justify-center">
+                                <button onclick="app.renderListSelection()" class="bg-white text-blue-600 px-6 py-3 rounded-xl font-bold shadow-md hover:scale-105 transition flex-1 md:flex-none">
+                                    开始练习
+                                </button>
+                                <button onclick="app.renderStats()" class="bg-blue-700 text-white border border-blue-500 px-6 py-3 rounded-xl font-bold shadow-md hover:bg-blue-800 transition flex-1 md:flex-none">
+                                    学习统计
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-5 opacity-50 pointer-events-none grayscale relative">
+                            <div class="absolute inset-0 z-10 flex items-center justify-center">
+                                <span class="bg-white/90 px-4 py-2 rounded-lg font-bold text-slate-500 shadow text-sm">请点击上方“开始练习”</span>
+                            </div>
+                            ${this.createGameCard('Match', '匹配消除', '🧩', '')}
+                            ${this.createGameCard('Fill Blank', '选字填空', '✍️', '')}
+                            ${this.createGameCard('Quiz', '选择题', '❓', '')}
+                            ${this.createGameCard('Speed', '限时挑战', '⚡', '')}
+                            ${this.createGameCard('Flashcards', '闪卡记忆', '📇', '')}
+                            ${this.createGameCard('Writing', '书写自测', '🖊️', '')}
+                        </div>
+                    </div>
+                `;
+            },
+
+            renderListSelection() {
+                this.showBackButton();
+                sfx.click();
+                const root = document.getElementById('appRoot');
+                let listsHtml = '';
+                const allTotal = vocabularyData.length;
+                let allMastered = 0;
+                vocabularyData.forEach(w => { if(this.state.progress[w.h]?.netScore >= 3) allMastered++; });
+                
+                listsHtml += `
+                    <div onclick="app.selectList(null)" class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 cursor-pointer hover:border-blue-400 transition mb-4 active:scale-98">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="font-bold text-lg">📚 全部词汇 (All Lists)</span>
+                            <span class="text-slate-400 text-sm">${allMastered}/${allTotal}</span>
+                        </div>
+                        <div class="w-full bg-slate-100 rounded-full h-2">
+                            <div class="bg-blue-500 h-2 rounded-full" style="width: ${(allMastered/allTotal)*100}%"></div>
+                        </div>
+                    </div>
+                `;
+
+                for(let i=1; i<=30; i++) {
+                    const listWords = vocabularyData.filter(w => w.l === i);
+                    const count = listWords.length;
+                    let mastered = 0;
+                    listWords.forEach(w => { if(this.state.progress[w.h]?.netScore >= 3) mastered++; });
+                    const pct = count > 0 ? (mastered/count)*100 : 0;
+
+                    listsHtml += `
+                        <div onclick="app.selectList(${i})" class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 cursor-pointer hover:border-blue-400 transition active:scale-98">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="font-bold text-base">List ${i}: ${listNames[i]}</span>
+                                <span class="text-slate-400 text-xs">${mastered}/${count}</span>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-2">
+                                <div class="bg-green-500 h-2 rounded-full" style="width: ${pct}%"></div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                root.innerHTML = `
+                    <div class="max-w-3xl mx-auto pb-10">
+                        <h2 class="text-xl md:text-2xl font-bold mb-4 text-center">选择词汇表</h2>
+                        <div class="flex flex-col gap-2">
+                            ${listsHtml}
+                        </div>
+                    </div>
+                `;
+            },
+
+            selectList(id) {
+                this.state.selectedListId = id;
+                this.renderGameMenu();
+                sfx.click();
+            },
+
+            renderGameMenu() {
+                const root = document.getElementById('appRoot');
+                const listName = this.state.selectedListId === null ? "全部词汇" : 
+                                 (this.state.selectedListId === -1 ? "错题本" : listNames[this.state.selectedListId]);
+                
+                root.innerHTML = `
+                    <div class="flex flex-col gap-6 max-w-4xl mx-auto">
+                        <div class="text-center">
+                            <h2 class="text-sm text-slate-400 uppercase tracking-wider">Current List</h2>
+                            <h1 class="text-2xl md:text-3xl font-bold text-blue-600 mt-1">${listName}</h1>
+                        </div>
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-5">
+                            ${this.createGameCard('Match', '匹配消除', '🧩', 'app.startGame("match")')}
+                            ${this.createGameCard('Fill Blank', '选字填空', '✍️', 'app.startGame("fill")')}
+                            ${this.createGameCard('Quiz', '选择题', '❓', 'app.showQuizMode("quiz")')}
+                            ${this.createGameCard('Speed', '限时挑战', '⚡', 'app.showQuizMode("speed")')}
+                            ${this.createGameCard('Flashcards', '闪卡记忆', '📇', 'app.startGame("flash")')}
+                            ${this.createGameCard('Writing', '书写自测', '🖊️', 'app.startGame("write")')}
+                        </div>
+                        <div class="text-center mt-4">
+                            <button onclick="app.renderListSelection()" class="text-slate-400 hover:text-slate-600 underline text-sm">更改词汇表</button>
+                        </div>
+                    </div>
+                `;
+            },
+
+            createGameCard(title, subtitle, icon, action) {
+                return `
+                    <div onclick='${action}' class="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-100 cursor-pointer active:scale-95 transition flex flex-col items-center text-center gap-2 md:gap-3 h-full justify-center">
+                        <div class="text-3xl md:text-4xl mb-1">${icon}</div>
+                        <div>
+                            <h3 class="font-bold text-slate-800 text-base md:text-lg leading-tight">${title}</h3>
+                            <p class="text-xs md:text-sm text-slate-400 font-medium">${subtitle}</p>
+                        </div>
+                    </div>
+                `;
+            },
+
+            renderStats() {
+                this.showBackButton();
+                sfx.click();
+                let mastered = 0, seen = 0, mistakeList = [];
+                const total = vocabularyData.length;
+                
+                Object.keys(this.state.progress).forEach(h => {
+                    const data = this.state.progress[h];
+                    if(data.seen) seen++;
+                    if(data.netScore >= 3) mastered++;
+                    if(data.seen && data.netScore < 3) {
+                         const w = vocabularyData.find(wd => wd.h === h);
+                         if(w) mistakeList.push(w);
+                    }
+                });
+                const completion = Math.round((mastered / total) * 100);
+
+                const root = document.getElementById('appRoot');
+                root.innerHTML = `
+                    <div class="max-w-4xl mx-auto pb-10">
+                        <h2 class="text-2xl font-bold mb-6 text-center">学习统计 (Progress)</h2>
+                        <div class="grid grid-cols-2 gap-3 md:gap-4 mb-6">
+                            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center">
+                                <span class="text-3xl font-bold text-green-500">${mastered}</span>
+                                <span class="text-xs text-slate-400 mt-1">已掌握 (Mastered)</span>
+                            </div>
+                            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center">
+                                <span class="text-3xl font-bold text-blue-500">${seen}</span>
+                                <span class="text-xs text-slate-400 mt-1">已学习 (Seen)</span>
+                            </div>
+                            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center">
+                                <span class="text-3xl font-bold text-slate-700">${total}</span>
+                                <span class="text-xs text-slate-400 mt-1">总词汇 (Total)</span>
+                            </div>
+                            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center">
+                                <span class="text-3xl font-bold text-indigo-500">${completion}%</span>
+                                <span class="text-xs text-slate-400 mt-1">完成度 (Completion)</span>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 mb-6">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-lg font-bold flex items-center gap-2">
+                                    <span>⚠️ 错题本 / 待复习</span>
+                                    <span class="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full">${mistakeList.length}</span>
+                                </h3>
+                                ${mistakeList.length > 0 ? `<button onclick="app.startReviewGame()" class="text-blue-600 text-sm font-bold hover:underline">去练习这些词</button>` : ''}
+                            </div>
+                            <div class="max-h-64 overflow-y-auto no-scrollbar">
+                                ${mistakeList.length === 0 ? '<p class="text-slate-400 text-center py-8">暂无错题，继续加油！</p>' : 
+                                  `<div class="grid grid-cols-1 gap-2">
+                                     ${mistakeList.map(w => `<div class="p-3 border rounded-xl bg-slate-50 flex justify-between items-center"><div class="flex flex-col"><span class="font-bold text-lg">${w.h}</span><span class="text-xs text-slate-500">${w.p}</span></div><span class="text-sm text-slate-600">${w.m}</span></div>`).join('')}
+                                   </div>`
+                                }
+                            </div>
+                        </div>
+                        <div class="flex justify-center">
+                             <button onclick="app.clearProgress()" class="text-red-400 text-sm hover:text-red-600 underline">清除所有进度</button>
+                        </div>
+                    </div>
+                `;
+                this.startReviewGame = () => {
+                    this.state.selectedListId = -1;
+                    this.state.customPool = mistakeList;
+                    this.renderGameMenu();
+                };
+            },
+
+            // --- QUIZ MODE SELECTION ---
+            showQuizMode(gameType) {
+                sfx.click();
+                const root = document.getElementById('appRoot');
+                root.innerHTML = `
+                    <div class="flex flex-col items-center justify-center h-full max-w-md mx-auto">
+                        <h2 class="text-2xl font-bold mb-8">选择${gameType === 'speed' ? '限时' : ''}题型</h2>
+                        <button onclick="app.startGame('${gameType}', 'h2e')" class="w-full bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-4 hover:border-blue-500 transition text-left group">
+                            <span class="block text-slate-400 text-xs font-bold uppercase mb-1">Mode A</span>
+                            <span class="text-xl font-bold text-slate-800 group-hover:text-blue-600">看生词 → 选意思</span>
+                            <span class="block text-slate-400 text-sm mt-1">例如：以前 → Before</span>
+                        </button>
+                        <button onclick="app.startGame('${gameType}', 'e2h')" class="w-full bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:border-blue-500 transition text-left group">
+                            <span class="block text-slate-400 text-xs font-bold uppercase mb-1">Mode B</span>
+                            <span class="text-xl font-bold text-slate-800 group-hover:text-blue-600">看意思 → 选生词</span>
+                            <span class="block text-slate-400 text-sm mt-1">例如：Before → 以前</span>
+                        </button>
+                         <button onclick="app.renderGameMenu()" class="mt-8 text-slate-400">取消</button>
+                    </div>
+                `;
+            },
+
+            startGame(type, mode) {
+                sfx.click();
+                this.state.view = type;
+                if(mode) this.state.quizDirection = mode;
+                let pool = this.getPool();
+                if(pool.length < 4 && type !== 'flash' && type !== 'write') {
+                    alert("词汇量太少，无法开始此游戏 (至少需要4个词)");
+                    this.renderGameMenu();
+                    return;
+                }
+                
+                if(type === 'match') this.initMatchGame(pool);
+                if(type === 'fill') this.initFillGame(pool);
+                if(type === 'quiz') this.initQuizGame(pool, false);
+                if(type === 'speed') this.initQuizGame(pool, true);
+                if(type === 'flash') this.initFlashGame(pool);
+                if(type === 'write') this.initWriteGame(pool);
+            },
+
+            // --- GAME 1: MATCH (Face Up) ---
+            initMatchGame(pool) {
+                const words = this.getRandomWords(6, pool); // 6 pairs
+                let cards = [];
+                words.forEach((w, i) => {
+                    cards.push({ id: `h_${i}`, content: w.h, type: 'h', matchId: i, original: w });
+                    cards.push({ id: `m_${i}`, content: w.m, type: 'm', matchId: i, original: w });
+                });
+                cards.sort(() => 0.5 - Math.random());
+
+                let selected = null;
+                let matchedIds = [];
+
+                const root = document.getElementById('appRoot');
+                const renderGrid = () => {
+                    let html = `<div class="grid grid-cols-3 md:grid-cols-4 gap-3 h-full content-center max-w-3xl mx-auto pb-10">`;
+                    cards.forEach((c) => {
+                        const isMatched = matchedIds.includes(c.matchId);
+                        const isSelected = selected && selected.id === c.id;
+                        const visibilityClass = isMatched ? 'opacity-0 pointer-events-none' : '';
+                        const selectClass = isSelected ? 'card-selected ring-4 ring-blue-200' : 'bg-white border-slate-200 hover:border-blue-300';
+                        const textStyle = c.type === 'h' ? 'text-xl md:text-2xl font-bold text-slate-800' : 'text-sm md:text-base text-slate-600 font-medium';
+
+                        html += `
+                            <div id="${c.id}" class="aspect-[4/3] rounded-xl shadow-sm border-2 cursor-pointer transition-all duration-200 flex items-center justify-center text-center p-2 ${visibilityClass} ${selectClass}" onclick="app.handleMatchClick('${c.id}')">
+                                <span class="${textStyle}">${c.content}</span>
+                            </div>
+                        `;
+                    });
+                    html += `</div>`;
+                    root.innerHTML = html;
+                };
+
+                this.handleMatchClick = (id) => {
+                    const card = cards.find(c => c.id === id);
+                    if(!card || matchedIds.includes(card.matchId)) return;
+
+                    if(!selected) {
+                        selected = card;
+                        renderGrid();
+                        sfx.click(); // Click when selecting first card
+                    } else {
+                        if(selected.id === id) {
+                            selected = null;
+                            renderGrid();
+                            return;
+                        }
+
+                        if(selected.matchId === card.matchId) {
+                            // Correct
+                            sfx.ding();
+                            matchedIds.push(card.matchId);
+                            this.updateProgress(card.original.h, true);
+                            selected = null;
+                            const el1 = document.getElementById(selected?.id || id);
+                            const el2 = document.getElementById(card.id);
+                            if(el1) el1.classList.add('pop', 'bg-green-100', 'border-green-500');
+                            if(el2) el2.classList.add('pop', 'bg-green-100', 'border-green-500');
+                            
+                            setTimeout(() => {
+                                renderGrid();
+                                if(matchedIds.length === words.length) this.showWinModal();
+                            }, 300);
+
+                        } else {
+                            // Wrong
+                            sfx.dong();
+                            const el1 = document.getElementById(selected.id);
+                            const el2 = document.getElementById(card.id);
+                            el1.classList.add('shake', 'bg-red-50', 'border-red-300');
+                            el2.classList.add('shake', 'bg-red-50', 'border-red-300');
+                            setTimeout(() => {
+                                selected = null;
+                                renderGrid();
+                            }, 500);
+                        }
+                    }
+                };
+                renderGrid();
+            },
+
+            // --- GAME 2: FILL BLANK ---
+            initFillGame(pool) {
+                let currentIdx = 0;
+                const questions = this.getRandomWords(5, pool);
+                
+                const renderQ = () => {
+                    if(currentIdx >= questions.length) { this.showWinModal(); return; }
+                    const q = questions[currentIdx];
+                    const chars = q.h.split('');
+                    let distractors = [];
+                    while(distractors.length < 4) {
+                        const r = vocabularyData[Math.floor(Math.random()*vocabularyData.length)].h;
+                        if(r) { const char = r[0]; if(!chars.includes(char) && !distractors.includes(char)) distractors.push(char); }
+                    }
+                    const poolChars = [...chars, ...distractors].sort(() => 0.5 - Math.random());
+                    let userSlots = Array(chars.length).fill(null);
+                    
+                    const root = document.getElementById('appRoot');
+                    
+                    const updateUI = (shake = false) => {
+                        const pinyinHtml = this.state.pinyinVisible ? `<p class="text-blue-500 mb-6 text-xl">${q.p}</p>` : '<div class="h-6 mb-6"></div>';
+                        
+                        let slotsHtml = `<div class="flex gap-2 justify-center mb-10 ${shake ? 'shake' : ''}">`;
+                        userSlots.forEach((char, i) => {
+                            slotsHtml += `
+                                <div onclick="app.undoSlot(${i})" class="w-14 h-14 border-b-4 ${char ? 'border-blue-500 text-blue-600' : 'border-slate-200'} flex items-center justify-center text-3xl font-bold cursor-pointer transition">
+                                    ${char || ''}
+                                </div>
+                            `;
+                        });
+                        slotsHtml += `</div>`;
+
+                        let poolHtml = `<div class="flex flex-wrap gap-3 justify-center max-w-sm mx-auto">`;
+                        poolChars.forEach((char) => {
+                             poolHtml += `
+                                <button onclick="app.pickChar('${char}')" class="w-14 h-14 bg-white shadow-sm rounded-xl hover:bg-slate-50 font-bold text-xl border border-slate-200 active:scale-95 transition">
+                                    ${char}
+                                </button>
+                             `;
+                        });
+                        poolHtml += `</div>`;
+
+                        root.innerHTML = `
+                            <div class="flex flex-col items-center justify-center h-full pb-20">
+                                <h2 class="text-2xl md:text-3xl font-bold mb-2 text-center">${q.m}</h2>
+                                ${pinyinHtml}
+                                ${slotsHtml}
+                                ${poolHtml}
+                            </div>
+                        `;
+                    };
+
+                    this.pickChar = (char) => {
+                        sfx.click(); // Click on picking char
+                        const emptyIndex = userSlots.findIndex(s => s === null);
+                        if(emptyIndex !== -1) {
+                            userSlots[emptyIndex] = char;
+                            updateUI();
+                            if(!userSlots.includes(null)) {
+                                if(userSlots.join('') === q.h) {
+                                    sfx.ding();
+                                    this.updateProgress(q.h, true);
+                                    setTimeout(() => { currentIdx++; renderQ(); }, 600);
+                                } else {
+                                    sfx.dong();
+                                    this.updateProgress(q.h, false);
+                                    updateUI(true);
+                                    setTimeout(() => { userSlots = Array(chars.length).fill(null); updateUI(); }, 800);
+                                }
+                            }
+                        }
+                    };
+                    this.undoSlot = (i) => { userSlots[i] = null; updateUI(); sfx.click(); };
+                    updateUI();
+                };
+                renderQ();
+            },
+
+            // --- GAME 3 & 4: QUIZ (Std & Speed) ---
+            initQuizGame(pool, isSpeed) {
+                let currentIdx = 0;
+                const questions = this.getRandomWords(10, pool);
+                const mode = this.state.quizDirection; 
+
+                const renderQ = () => {
+                    if(currentIdx >= questions.length) { 
+                        clearInterval(this.state.timer);
+                        this.showWinModal(); 
+                        return; 
+                    }
+                    const q = questions[currentIdx];
+                    let options = [q];
+                    while(options.length < 4) {
+                        const r = vocabularyData[Math.floor(Math.random()*vocabularyData.length)];
+                        if(r && !options.find(o => o.h === r.h)) options.push(r);
+                    }
+                    options.sort(() => 0.5 - Math.random());
+
+                    const root = document.getElementById('appRoot');
+                    
+                    const questionText = mode === 'h2e' ? q.h : q.m;
+                    const pinyinHtml = (mode === 'h2e' && this.state.pinyinVisible) ? `<div class="text-blue-500 text-xl mb-4">${q.p}</div>` : '';
+                    
+                    let timerHtml = '';
+                    if(isSpeed) {
+                         clearInterval(this.state.timer);
+                         let timeLeft = 10;
+                         timerHtml = `<div class="w-full max-w-md h-2 bg-slate-200 rounded-full mb-6 overflow-hidden"><div id="timeBar" class="h-full bg-blue-500 transition-all duration-100 ease-linear" style="width:100%"></div></div>`;
+                         this.state.timer = setInterval(() => {
+                            timeLeft -= 0.1;
+                            const bar = document.getElementById('timeBar');
+                            if(bar) bar.style.width = `${(timeLeft/10)*100}%`;
+                            if(timeLeft <= 0) {
+                                clearInterval(this.state.timer);
+                                sfx.dong();
+                                this.updateProgress(q.h, false);
+                                document.getElementById('qContainer').classList.add('bg-red-50');
+                                setTimeout(() => { currentIdx++; renderQ(); }, 1000);
+                            }
+                         }, 100);
+                    }
+
+                    let btns = `<div class="grid grid-cols-1 gap-3 w-full max-w-md">`;
+                    options.forEach(opt => {
+                        const btnText = mode === 'h2e' ? opt.m : opt.h;
+                        btns += `
+                            <button onclick="app.handleQuizAnswer('${opt.h}', '${q.h}')" class="p-5 bg-white border border-slate-200 rounded-2xl shadow-sm hover:border-blue-500 active:scale-98 transition text-lg font-medium text-left">
+                                ${btnText}
+                            </button>
+                        `;
+                    });
+                    btns += `</div>`;
+
+                    root.innerHTML = `
+                        <div id="qContainer" class="flex flex-col items-center justify-center h-full w-full p-4 transition-colors duration-300 rounded-3xl">
+                            ${timerHtml}
+                            <div class="text-4xl md:text-5xl font-bold mb-4 text-slate-800 text-center">${questionText}</div>
+                            ${pinyinHtml}
+                            <div class="mt-8 w-full flex justify-center">${btns}</div>
+                            <div class="mt-8 text-slate-300 text-sm font-bold tracking-widest">${currentIdx + 1} / ${questions.length}</div>
+                        </div>
+                    `;
+                };
+
+                this.handleQuizAnswer = (selected, correct) => {
+                    clearInterval(this.state.timer);
+                    const q = questions[currentIdx];
+                    if(selected === correct) {
+                        sfx.ding();
+                        this.updateProgress(q.h, true);
+                        currentIdx++; 
+                        renderQ();
+                    } else {
+                        sfx.dong();
+                        this.updateProgress(q.h, false);
+                        const container = document.getElementById('qContainer');
+                        container.classList.add('bg-red-50', 'shake');
+                        setTimeout(() => {
+                            container.classList.remove('shake', 'bg-red-50');
+                            currentIdx++; 
+                            renderQ();
+                        }, 800);
+                    }
+                };
+                renderQ();
+            },
+
+            // --- GAME 5: FLASHCARDS (Final) ---
+            initFlashGame(pool) {
+                let currentIdx = 0;
+                const questions = pool; 
+                
+                const renderCard = () => {
+                    if(currentIdx >= questions.length) { this.showWinModal(); return; }
+                    const q = questions[currentIdx];
+                    
+                    const root = document.getElementById('appRoot');
+                    root.innerHTML = `
+                        <div class="flex flex-col items-center h-full justify-center pb-10">
+                            <div class="bg-white p-8 rounded-3xl shadow-xl border border-slate-100 text-center w-full max-w-sm flex flex-col items-center gap-6 min-h-[300px] justify-center">
+                                <h2 class="text-6xl font-bold text-slate-800">${q.h}</h2>
+                                <div class="w-full h-px bg-slate-100"></div>
+                                <div class="text-center">
+                                    <p class="text-2xl font-bold text-blue-500 mb-2">${q.p}</p>
+                                    <p class="text-xl text-slate-600">${q.m}</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex gap-4 mt-10 w-full max-w-xs">
+                                <button onclick="app.nextFlashCard(false)" class="flex-1 py-4 bg-slate-200 text-slate-600 font-bold rounded-2xl active:scale-95 transition">
+                                    下一个
+                                </button>
+                                <button onclick="app.nextFlashCard(true)" class="flex-1 py-4 bg-green-500 text-white font-bold rounded-2xl shadow-lg shadow-green-200 active:scale-95 transition">
+                                    我记住了
+                                </button>
+                            </div>
+                            <div class="mt-6 text-slate-300 font-bold text-sm">${currentIdx + 1} / ${questions.length}</div>
+                        </div>
+                    `;
+                };
+
+                this.nextFlashCard = (known) => {
+                    if(known) {
+                        sfx.ding();
+                        this.updateProgress(questions[currentIdx].h, true);
+                    } else {
+                        sfx.click(); // Click sound for "Next"
+                    }
+                    currentIdx++;
+                    renderCard();
+                };
+                renderCard();
+            },
+
+            // --- GAME 6: WRITING (Final) ---
+            initWriteGame(pool) {
+                let currentIdx = 0;
+                const questions = this.getRandomWords(10, pool);
+
+                const renderCanvas = () => {
+                    if(currentIdx >= questions.length) { this.showWinModal(); return; }
+                    const q = questions[currentIdx];
+                    const chars = q.h.split('');
+                    
+                    const root = document.getElementById('appRoot');
+                    
+                    let canvasHtml = '';
+                    chars.forEach((char, i) => {
+                        canvasHtml += `
+                            <div class="relative w-[140px] h-[140px] md:w-[160px] md:h-[160px]">
+                                <div class="absolute inset-0 tian-zi-ge pointer-events-none z-0"></div>
+                                <canvas id="c_${i}" width="160" height="160" class="relative z-10 w-full h-full cursor-crosshair touch-none"></canvas>
+                                <div id="ans_${i}" class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 transition-opacity duration-300 z-0">
+                                    <span class="text-[120px] font-hand text-red-500/40 leading-none">${char}</span>
+                                </div>
+                            </div>
+                        `;
+                    });
+
+                    root.innerHTML = `
+                        <div class="flex flex-col items-center h-full pt-4 pb-10">
+                            <div class="text-center mb-6">
+                                <h2 class="text-2xl font-bold text-slate-800">${q.m}</h2>
+                                <p class="text-blue-500 text-lg font-medium mt-1">${q.p}</p>
+                            </div>
+
+                            <div class="flex flex-wrap justify-center gap-2 mb-8">
+                                ${canvasHtml}
+                            </div>
+
+                            <div class="flex gap-3 mb-8">
+                                <button onclick="app.clearCanvases(${chars.length})" class="px-5 py-2 bg-slate-100 text-slate-600 rounded-lg text-sm font-bold">Clear</button>
+                                <button onclick="app.showWritingAnswer(${chars.length})" class="px-5 py-2 bg-blue-50 text-blue-600 rounded-lg text-sm font-bold">Show Answer</button>
+                            </div>
+
+                            <div class="flex gap-4 w-full max-w-sm mt-auto">
+                                <button onclick="app.rateWriting(false)" class="flex-1 py-3 bg-red-50 text-red-600 border border-red-100 font-bold rounded-xl active:scale-95 transition flex items-center justify-center gap-2">
+                                    <span>✕</span> Incorrect
+                                </button>
+                                <button onclick="app.rateWriting(true)" class="flex-1 py-3 bg-green-500 text-white font-bold rounded-xl shadow-lg shadow-green-200 active:scale-95 transition flex items-center justify-center gap-2">
+                                    <span>✓</span> Correct
+                                </button>
+                            </div>
+                        </div>
+                    `;
+
+                    setTimeout(() => {
+                        chars.forEach((_, i) => this.initCanvas(`c_${i}`));
+                    }, 50);
+                };
+
+                this.initCanvas = (id) => {
+                    const canvas = document.getElementById(id);
+                    if(!canvas) return;
+                    const ctx = canvas.getContext('2d');
+                    ctx.lineWidth = 6;
+                    ctx.lineCap = 'round';
+                    ctx.lineJoin = 'round';
+                    ctx.strokeStyle = '#1e293b';
+
+                    const rect = canvas.getBoundingClientRect();
+                    canvas.width = rect.width;
+                    canvas.height = rect.height;
+
+                    let isDrawing = false;
+                    const start = (e) => {
+                        isDrawing = true;
+                        ctx.beginPath();
+                        const {x, y} = getPos(e);
+                        ctx.moveTo(x, y);
+                    };
+                    const move = (e) => {
+                        if(!isDrawing) return;
+                        const {x, y} = getPos(e);
+                        ctx.lineTo(x, y);
+                        ctx.stroke();
+                    };
+                    const end = () => { isDrawing = false; };
+                    const getPos = (e) => {
+                        const r = canvas.getBoundingClientRect();
+                        const t = e.touches ? e.touches[0] : e;
+                        return { x: t.clientX - r.left, y: t.clientY - r.top };
+                    };
+                    canvas.addEventListener('mousedown', start);
+                    canvas.addEventListener('mousemove', move);
+                    canvas.addEventListener('mouseup', end);
+                    canvas.addEventListener('touchstart', start, {passive: false});
+                    canvas.addEventListener('touchmove', (e) => { e.preventDefault(); move(e); }, {passive: false});
+                    canvas.addEventListener('touchend', end);
+                };
+
+                this.clearCanvases = (count) => {
+                    sfx.click();
+                    for(let i=0; i<count; i++) {
+                        const c = document.getElementById(`c_${i}`);
+                        const ctx = c.getContext('2d');
+                        ctx.clearRect(0, 0, c.width, c.height);
+                    }
+                };
+
+                this.showWritingAnswer = (count) => {
+                    sfx.click();
+                    for(let i=0; i<count; i++) {
+                        document.getElementById(`ans_${i}`).classList.remove('opacity-0');
+                    }
+                };
+
+                this.rateWriting = (correct) => {
+                    const q = questions[currentIdx];
+                    if(!correct) {
+                        sfx.dong();
+                        this.updateProgress(q.h, false);
+                    } else {
+                        sfx.ding();
+                        this.updateProgress(q.h, true);
+                    }
+                    currentIdx++;
+                    renderCanvas();
+                };
+                renderCanvas();
+            },
+
+            showWinModal() {
+                sfx.ding();
+                const root = document.getElementById('appRoot');
+                root.innerHTML += `
+                    <div class="absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                        <div class="bg-white p-8 rounded-3xl text-center shadow-2xl animate-bounce w-full max-w-sm">
+                            <div class="text-6xl mb-4">🎉</div>
+                            <h2 class="text-2xl font-bold mb-2 text-slate-800">完成练习!</h2>
+                            <p class="text-slate-500 mb-6">Great job!</p>
+                            <button onclick="app.renderGameMenu()" class="w-full bg-blue-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition">返回菜单</button>
+                        </div>
+                    </div>
+                `;
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', () => app.init());
+    </script>
+</body>
+</html>
